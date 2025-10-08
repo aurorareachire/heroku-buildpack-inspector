@@ -18,13 +18,11 @@ indent () {
 #if [ -f "$ENV_DIR/INSPECT_BUILD" ] && [ "$(cat $ENV_DIR/INSPECT_BUILD)" = "true" ]; then
 if true; then
 
-    (
-      echo "----PWD----"
-      pwd
-      echo "----ENV----"
-      env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
-      echo "------------"
-    ) | indent
+#    (
+#      echo "----ENV----"
+#      env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
+#      echo "------------"
+#    ) | indent
 
     echo "INSPECT_BUILD=true detected, setting up interactive session..." | indent
 
@@ -37,7 +35,7 @@ if true; then
       mkdir -p /tmp/tmate
       cd /tmp/tmate
 
-      curl -s -L -o tmate.tar.xz "$TMATE_URL" | indent
+      curl -s -L -o tmate.tar.xz "$TMATE_URL"
       tar xf tmate.tar.xz | indent
       TMATE_BIN="$(find . -name tmate -type f)"
     else
