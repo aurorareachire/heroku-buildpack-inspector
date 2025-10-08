@@ -10,36 +10,46 @@ ENV_DIR=$3
 
 echo "-----> Inspector Buildpack"
 
+indent () {
+  sed 's/^/       /'
+}
 
 # Check if INSPECT_BUILD is set
 #if [ -f "$ENV_DIR/INSPECT_BUILD" ] && [ "$(cat $ENV_DIR/INSPECT_BUILD)" = "true" ]; then
 if true; then
-    echo "----PWD----"
-    pwd
-    echo "----ENV----"
-    env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
-    echo "------------"
 
-    echo "       INSPECT_BUILD=true detected, setting up interactive session..."
+    (
+      echo "----PWD----"
+      pwd
+      echo "----ENV----"
+      env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
+      echo "------------"
+    ) | indent
 
-    # Download and install tmate
-    TMATE_VERSION="2.4.0"
-    TMATE_URL="https://github.com/tmate-io/tmate/releases/download/${TMATE_VERSION}/tmate-${TMATE_VERSION}-static-linux-amd64.tar.xz"
+    echo "INSPECT_BUILD=true detected, setting up interactive session..." | indent
 
-    echo "       Downloading tmate ${TMATE_VERSION}..."
-    mkdir -p /tmp/tmate
-    cd /tmp/tmate
+    if ! tmate -V > /dev/null 2>&1; then
+      # Download and install tmate
+      TMATE_VERSION="2.4.0"
+      TMATE_URL="https://github.com/tmate-io/tmate/releases/download/${TMATE_VERSION}/tmate-${TMATE_VERSION}-static-linux-amd64.tar.xz"
 
-    curl -s -L -o tmate.tar.xz "$TMATE_URL"
-    tar xf tmate.tar.xz
-    TMATE_BIN="$(find . -name tmate -type f)"
+      echo "Downloading tmate ${TMATE_VERSION}..." | indent
+      mkdir -p /tmp/tmate
+      cd /tmp/tmate
 
-    echo "       Starting tmate session..."
+      curl -s -L -o tmate.tar.xz "$TMATE_URL" | indent
+      tar xf tmate.tar.xz | indent
+      TMATE_BIN="$(find . -name tmate -type f)"
+    else
+      TMATE_BIN="tmate"
+    fi
+
+    echo "Starting tmate session..." | indent
     $TMATE_BIN -F 2>&1 | tee /tmp/tmate.log &
     TMATE_PID=$!
 
     # Wait for tmate to be ready and extract connection info
-    echo "       Waiting for tmate to initialize..."
+    echo "Waiting for tmate to initialize..." | indent
     sleep 5
 
     # Try to get SSH connection string from tmate
@@ -53,29 +63,32 @@ if true; then
         sleep 1
     done
 
-    echo ""
-    echo "======================================================================"
-    echo "       TMATE SESSION READY FOR INSPECTION"
-    echo "======================================================================"
-    echo ""
-    echo "       Current directory: $(pwd)"
-    echo "       BUILD_DIR: $BUILD_DIR"
-    echo "       CACHE_DIR: $CACHE_DIR"
-    echo ""
-
+    (
+      echo ""
+      echo "======================================================================"
+      echo "       TMATE SESSION READY FOR INSPECTION"
+      echo "======================================================================"
+      echo ""
+      echo "       Current directory: $(pwd)"
+      echo "       BUILD_DIR: $BUILD_DIR"
+      echo "       CACHE_DIR: $CACHE_DIR"
+      echo ""
+    ) | indent
     if [ -n "$SSH_CMD" ]; then
-        echo "$SSH_CMD"
+        echo "$SSH_CMD" | indent
     else
-        echo "       Connection info in /tmp/tmate.log:"
-        cat /tmp/tmate.log || echo "       (tmate.log not found)"
+        echo "Connection info in /tmp/tmate.log:" | indent
+        cat /tmp/tmate.log || (echo "(tmate.log not found)" | indent)
     fi
 
-    echo ""
-    echo "======================================================================"
-    echo "       Press Ctrl+C in your local terminal to cancel the build"
-    echo "       Or create file /tmp/continue to proceed automatically"
-    echo "======================================================================"
-    echo ""
+    (
+      echo ""
+      echo "======================================================================"
+      echo "       Press Ctrl+C in your local terminal to cancel the build"
+      echo "       Or create file /tmp/continue to proceed automatically"
+      echo "======================================================================"
+      echo ""
+    ) | indent
 
     # Wait for user to finish inspection
     # Either they cancel the build, or they create /tmp/continue
@@ -83,21 +96,25 @@ if true; then
     while [ ! -f /tmp/continue ]; do
         sleep 1
         if [[ $((n % 5)) -eq 0 ]]; then
-          echo "       [$(date)] Waiting for inspection to complete"
-          echo "       [$(date)] (the test is presence of /tmp/continue)"
+          (
+          echo "[$(date)] Waiting for inspection to complete"
+          echo "[$(date)] (the test is presence of /tmp/continue)"
+          ) | indent
         elif [ "$n" -gt 60 ] && [ ! -f /tmp/wait ]; then
-          echo "       [$(date)] Timed out waiting for inspection to complete"
+          echo "[$(date)] Timed out waiting for inspection to complete" | indent
           break
         fi
         n=$((n+1))
     done
 
-    echo "       Inspection complete, continuing build..."
+    echo "Inspection complete, continuing build..." | indent
     kill $TMATE_PID 2>/dev/null || true
 
 else
-    echo "       INSPECT_BUILD not set, skipping inspection"
-    echo "       Set INSPECT_BUILD=true to enable interactive debugging"
+  (
+    echo "INSPECT_BUILD not set, skipping inspection"
+    echo "Set INSPECT_BUILD=true to enable interactive debugging"
+    ) | indent
 fi
 
 echo "-----> Inspector Buildpack complete"
