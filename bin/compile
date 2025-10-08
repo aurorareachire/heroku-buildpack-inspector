@@ -11,7 +11,7 @@ ENV_DIR=$3
 echo "-----> Inspector Buildpack"
 
 indent () {
-  sed 's/^/       /'
+  sed -u 's/^/       /'
 }
 
 # Check if INSPECT_BUILD is set
@@ -36,19 +36,33 @@ if true; then
       cd /tmp/tmate
 
       curl -s -L -o tmate.tar.xz "$TMATE_URL"
-      tar xf tmate.tar.xz | indent
+      tar xf tmate.tar.xz
       TMATE_BIN="$(find . -name tmate -type f)"
     else
       TMATE_BIN="tmate"
     fi
 
+    #  exec 3> >(indent | tee /tmp/tmate.log) creates file descriptor 3 that redirects to a process substitution.
+    #
+    #  Breaking it down:
+    #  • exec 3> - Opens file descriptor 3 for writing
+    #  • >(indent | tee /tmp/tmate.log) - Process substitution that creates a pipe to the command
+    #  • $TMATE_BIN -F >&3 2>&1 - Redirects stdout to fd 3, stderr to stdout
+    #
+    #  So when tmate writes output, it goes to fd 3, which pipes it through indent | tee /tmp/tmate.log.
+    #
+    #  File descriptors 0, 1, 2 are stdin, stdout, stderr. You can create additional ones (3, 4, 5...) for custom redirections.
+    #
+    #  The >&3 syntax means "redirect stdout to file descriptor 3".
+
     echo "Starting tmate session..." | indent
-    $TMATE_BIN -F 2>&1 | tee /tmp/tmate.log &
+    exec 3> >(indent | tee /tmp/tmate.log)
+    $TMATE_BIN -F >&3 2>&1 &
     TMATE_PID=$!
 
     # Wait for tmate to be ready and extract connection info
-    echo "Waiting for tmate to initialize..." | indent
-    sleep 5
+    (echo "Waiting for tmate to initialize..."; echo) | indent
+    sleep 2
 
     # Try to get SSH connection string from tmate
     for i in {1..30}; do
@@ -78,8 +92,9 @@ if true; then
     (
       echo ""
       echo "======================================================================"
-      echo "       Press Ctrl+C in your local terminal to cancel the build"
-      echo "       Or create file /tmp/continue to proceed automatically"
+      echo "       Build will continue in 60 seconds"
+      echo "       Create file /tmp/wait if you need more time"
+      echo "       Create file /tmp/continue to continue the build right away"
       echo "======================================================================"
       echo ""
     ) | indent
@@ -103,6 +118,7 @@ if true; then
     done
 
     echo "Inspection complete, continuing build..." | indent
+    set -xv
     kill $TMATE_PID 2>/dev/null || true
 
 else
