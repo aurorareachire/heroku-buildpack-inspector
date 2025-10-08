@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# This buildpack always detects successfully so it can be added to any app
+echo "Inspector"
+exit 0

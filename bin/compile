@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Heroku buildpack compile script
+# This script checks for INSPECT_BUILD=true and starts a tmate session if set
+
+set -e
+
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+
+echo "-----> Inspector Buildpack"
+
+# Check if INSPECT_BUILD is set
+if [ -f "$ENV_DIR/INSPECT_BUILD" ] && [ "$(cat $ENV_DIR/INSPECT_BUILD)" = "true" ]; then
+    echo "       INSPECT_BUILD=true detected, setting up interactive session..."
+    
+    # Download and install tmate
+    TMATE_VERSION="2.4.0"
+    TMATE_URL="https://github.com/tmate-io/tmate/releases/download/${TMATE_VERSION}/tmate-${TMATE_VERSION}-static-linux-amd64.tar.xz"
+    
+    echo "       Downloading tmate ${TMATE_VERSION}..."
+    mkdir -p /tmp/tmate
+    cd /tmp/tmate
+    
+    curl -L -o tmate.tar.xz "$TMATE_URL"
+    tar xf tmate.tar.xz
+    TMATE_BIN="$(find . -name tmate -type f)"
+    
+    echo "       Starting tmate session..."
+    $TMATE_BIN -F 2>&1 | tee /tmp/tmate.log &
+    TMATE_PID=$!
+    
+    # Wait for tmate to be ready and extract connection info
+    echo "       Waiting for tmate to initialize..."
+    sleep 5
+    
+    # Try to get SSH connection string from tmate
+    for i in {1..30}; do
+        if [ -f /tmp/tmate.log ]; then
+            SSH_CMD=$(grep "ssh session:" /tmp/tmate.log | head -1 || true)
+            if [ -n "$SSH_CMD" ]; then
+                break
+            fi
+        fi
+        sleep 1
+    done
+    
+    echo ""
+    echo "======================================================================"
+    echo "       TMATE SESSION READY FOR INSPECTION"
+    echo "======================================================================"
+    echo ""
+    echo "       Current directory: $(pwd)"
+    echo "       BUILD_DIR: $BUILD_DIR"
+    echo "       CACHE_DIR: $CACHE_DIR"
+    echo ""
+    
+    if [ -n "$SSH_CMD" ]; then
+        echo "$SSH_CMD"
+    else
+        echo "       Connection info in /tmp/tmate.log:"
+        cat /tmp/tmate.log || echo "       (tmate.log not found)"
+    fi
+    
+    echo ""
+    echo "======================================================================"
+    echo "       Press Ctrl+C in your local terminal to cancel the build"
+    echo "       Or create file /tmp/continue_build to proceed automatically"
+    echo "======================================================================"
+    echo ""
+    
+    # Wait for user to finish inspection
+    # Either they cancel the build, or they create /tmp/continue_build
+    while [ ! -f /tmp/continue_build ]; do
+        sleep 2
+        echo "       [$(date)] Waiting for inspection to complete..."
+    done
+    
+    echo "       Inspection complete, continuing build..."
+    kill $TMATE_PID 2>/dev/null || true
+    
+else
+    echo "       INSPECT_BUILD not set, skipping inspection"
+    echo "       Set INSPECT_BUILD=true to enable interactive debugging"
+fi
+
+echo "-----> Inspector Buildpack complete"
+exit 0

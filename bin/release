@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Release script - no special runtime requirements
+echo "--- {}"
