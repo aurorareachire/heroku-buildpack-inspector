@@ -24,27 +24,27 @@ echo -----
 #if [ -f "$ENV_DIR/INSPECT_BUILD" ] && [ "$(cat $ENV_DIR/INSPECT_BUILD)" = "true" ]; then
 if true; then
     echo "       INSPECT_BUILD=true detected, setting up interactive session..."
-    
+
     # Download and install tmate
     TMATE_VERSION="2.4.0"
     TMATE_URL="https://github.com/tmate-io/tmate/releases/download/${TMATE_VERSION}/tmate-${TMATE_VERSION}-static-linux-amd64.tar.xz"
-    
+
     echo "       Downloading tmate ${TMATE_VERSION}..."
     mkdir -p /tmp/tmate
     cd /tmp/tmate
-    
+
     curl -L -o tmate.tar.xz "$TMATE_URL"
     tar xf tmate.tar.xz
     TMATE_BIN="$(find . -name tmate -type f)"
-    
+
     echo "       Starting tmate session..."
     $TMATE_BIN -F 2>&1 | tee /tmp/tmate.log &
     TMATE_PID=$!
-    
+
     # Wait for tmate to be ready and extract connection info
     echo "       Waiting for tmate to initialize..."
     sleep 5
-    
+
     # Try to get SSH connection string from tmate
     for i in {1..30}; do
         if [ -f /tmp/tmate.log ]; then
@@ -55,7 +55,7 @@ if true; then
         fi
         sleep 1
     done
-    
+
     echo ""
     echo "======================================================================"
     echo "       TMATE SESSION READY FOR INSPECTION"
@@ -65,31 +65,38 @@ if true; then
     echo "       BUILD_DIR: $BUILD_DIR"
     echo "       CACHE_DIR: $CACHE_DIR"
     echo ""
-    
+
     if [ -n "$SSH_CMD" ]; then
         echo "$SSH_CMD"
     else
         echo "       Connection info in /tmp/tmate.log:"
         cat /tmp/tmate.log || echo "       (tmate.log not found)"
     fi
-    
+
     echo ""
     echo "======================================================================"
     echo "       Press Ctrl+C in your local terminal to cancel the build"
     echo "       Or create file /tmp/continue_build to proceed automatically"
     echo "======================================================================"
     echo ""
-    
+
     # Wait for user to finish inspection
     # Either they cancel the build, or they create /tmp/continue_build
+    n=0
     while [ ! -f /tmp/continue_build ]; do
-        sleep 2
-        echo "       [$(date)] Waiting for inspection to complete..."
+        sleep 1
+        if [ $((n % 10)) -eq 10 ]; then
+          echo "       [$(date)] Waiting for inspection to complete"
+          echo "       [$(date)] (the test is presence of /tmp/continue_build)"
+        elif [[ $n -gt 30 -a ! -f /tmp/wait ]]; then
+          break
+        fi
+        n=$((n+1))
     done
-    
+
     echo "       Inspection complete, continuing build..."
     kill $TMATE_PID 2>/dev/null || true
-    
+
 else
     echo "       INSPECT_BUILD not set, skipping inspection"
     echo "       Set INSPECT_BUILD=true to enable interactive debugging"
