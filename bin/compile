@@ -11,18 +11,15 @@ ENV_DIR=$3
 echo "-----> Inspector Buildpack"
 
 
-echo "----PWD----"
-pwd
-echo "----ENV----"
-env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
-echo ------------
-echo ---LS---
-ls $ENV_DIR
-echo -----
-
 # Check if INSPECT_BUILD is set
 #if [ -f "$ENV_DIR/INSPECT_BUILD" ] && [ "$(cat $ENV_DIR/INSPECT_BUILD)" = "true" ]; then
 if true; then
+    echo "----PWD----"
+    pwd
+    echo "----ENV----"
+    env | sed 's/^\([^=]*\)=\(.*\)$/\x1b[32m\1\x1b[0m=\x1b[34m\2\x1b[0m/'
+    echo "------------"
+
     echo "       INSPECT_BUILD=true detected, setting up interactive session..."
 
     # Download and install tmate
