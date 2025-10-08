@@ -33,7 +33,7 @@ if true; then
     mkdir -p /tmp/tmate
     cd /tmp/tmate
 
-    curl -L -o tmate.tar.xz "$TMATE_URL"
+    curl -s -L -o tmate.tar.xz "$TMATE_URL"
     tar xf tmate.tar.xz
     TMATE_BIN="$(find . -name tmate -type f)"
 
@@ -76,19 +76,20 @@ if true; then
     echo ""
     echo "======================================================================"
     echo "       Press Ctrl+C in your local terminal to cancel the build"
-    echo "       Or create file /tmp/continue_build to proceed automatically"
+    echo "       Or create file /tmp/continue to proceed automatically"
     echo "======================================================================"
     echo ""
 
     # Wait for user to finish inspection
-    # Either they cancel the build, or they create /tmp/continue_build
+    # Either they cancel the build, or they create /tmp/continue
     n=0
-    while [ ! -f /tmp/continue_build ]; do
+    while [ ! -f /tmp/continue ]; do
         sleep 1
-        if [ $((n % 10)) -eq 10 ]; then
+        if [[ $((n % 5)) -eq 0 ]]; then
           echo "       [$(date)] Waiting for inspection to complete"
-          echo "       [$(date)] (the test is presence of /tmp/continue_build)"
-        elif [[ $n -gt 30 -a ! -f /tmp/wait ]]; then
+          echo "       [$(date)] (the test is presence of /tmp/continue)"
+        elif [ "$n" -gt 60 ] && [ ! -f /tmp/wait ]; then
+          echo "       [$(date)] Timed out waiting for inspection to complete"
           break
         fi
         n=$((n+1))
