@@ -67,10 +67,6 @@ if true; then
       echo "       TMATE SESSION READY FOR INSPECTION"
       echo "======================================================================"
       echo ""
-      echo "       Current directory: $(pwd)"
-      echo "       BUILD_DIR: $BUILD_DIR"
-      echo "       CACHE_DIR: $CACHE_DIR"
-      echo ""
     ) | indent
     if [ -n "$SSH_CMD" ]; then
         echo "$SSH_CMD" | indent
@@ -88,15 +84,16 @@ if true; then
       echo ""
     ) | indent
 
+
     # Wait for user to finish inspection
     # Either they cancel the build, or they create /tmp/continue
+    /bin/rm -f /tmp/continue /tmp/wait
     n=0
     while [ ! -f /tmp/continue ]; do
         sleep 1
         if [[ $((n % 5)) -eq 0 ]]; then
           (
-          echo "[$(date)] Waiting for inspection to complete"
-          echo "[$(date)] (the test is presence of /tmp/continue)"
+            echo "[$(date)] Waiting for inspection to complete (touch /tmp/continue to proceed)"
           ) | indent
         elif [ "$n" -gt 60 ] && [ ! -f /tmp/wait ]; then
           echo "[$(date)] Timed out waiting for inspection to complete" | indent
